@@ -15,8 +15,12 @@ import {
 } from '@/components/ui/dialog';
 import type { Attendance, AttendanceFilters, BreadcrumbItem, PaginatedData } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { Edit, Clock } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { Edit, Clock, CalendarIcon } from 'lucide-vue-next';
+import { ref, computed } from 'vue';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
 
 interface Department {
     id: number;
@@ -43,7 +47,7 @@ interface Employee {
         id: number;
         name: string;
     };
-    subDepartment?: {
+    sub_department?: {
         id: number;
         name: string;
     };
@@ -74,6 +78,8 @@ const localFilters = ref({
 
 const showOverrideModal = ref(false);
 const selectedAttendance = ref<Attendance | null>(null);
+const isStartDateOpen = ref(false);
+const isEndDateOpen = ref(false);
 
 const overrideForm = useForm({
     clock_in: '',
@@ -84,9 +90,14 @@ const overrideForm = useForm({
 });
 
 const applyFilters = () => {
-    router.get('/attendance/admin', {
-        ...localFilters.value,
-    }, {
+    const filters = { ...localFilters.value };
+    
+    // Sanitize filters: convert 'all_*' or null/undefined to empty string
+    if (filters.department === 'all_departments') filters.department = '';
+    if (filters.sub_department === 'all_sub_departments') filters.sub_department = '';
+    if (filters.employee === 'all_employees') filters.employee = '';
+
+    router.get('/attendance/admin', filters, {
         preserveState: true,
         preserveScroll: true,
     });
@@ -148,6 +159,15 @@ const formatMinutesToHours = (minutes: number | null) => {
     const mins = minutes % 60;
     return `${hours}h ${mins}m`;
 };
+
+const formatDateForDisplay = (dateString: string) => {
+    if (!dateString) return 'Pick a date';
+    return new Date(dateString).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+    });
+};
 </script>
 
 <template>
@@ -169,60 +189,94 @@ const formatMinutesToHours = (minutes: number | null) => {
                 </CardHeader>
                 <CardContent>
                     <div class="grid gap-4 md:grid-cols-6">
+
                         <div class="space-y-2">
-                            <Label for="start_date">Start Date</Label>
-                            <Input
-                                id="start_date"
-                                type="date"
-                                v-model="localFilters.start_date"
-                            />
+                             <Label>Start Date</Label>
+                             <Popover v-model:open="isStartDateOpen">
+                                <PopoverTrigger as-child>
+                                    <Button
+                                        variant="outline"
+                                        :class="cn(
+                                            'w-full justify-start text-left font-normal',
+                                            !localFilters.start_date && 'text-muted-foreground'
+                                        )"
+                                    >
+                                        <CalendarIcon class="mr-2 h-4 w-4" />
+                                        {{ formatDateForDisplay(localFilters.start_date) }}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent class="w-auto p-0" align="start">
+                                    <Calendar 
+                                        :model-value="localFilters.start_date"
+                                        @update:model-value="(v) => { localFilters.start_date = v; isStartDateOpen = false; }"
+                                    />
+                                </PopoverContent>
+                            </Popover>
                         </div>
                         <div class="space-y-2">
-                            <Label for="end_date">End Date</Label>
-                            <Input
-                                id="end_date"
-                                type="date"
-                                v-model="localFilters.end_date"
-                            />
+                            <Label>End Date</Label>
+                             <Popover v-model:open="isEndDateOpen">
+                                <PopoverTrigger as-child>
+                                    <Button
+                                        variant="outline"
+                                        :class="cn(
+                                            'w-full justify-start text-left font-normal',
+                                            !localFilters.end_date && 'text-muted-foreground'
+                                        )"
+                                    >
+                                        <CalendarIcon class="mr-2 h-4 w-4" />
+                                        {{ formatDateForDisplay(localFilters.end_date) }}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent class="w-auto p-0" align="start">
+                                    <Calendar 
+                                        :model-value="localFilters.end_date"
+                                        @update:model-value="(v) => { localFilters.end_date = v; isEndDateOpen = false; }"
+                                    />
+                                </PopoverContent>
+                            </Popover>
                         </div>
                         <div class="space-y-2">
-                            <Label for="department">Department</Label>
-                            <select
-                                id="department"
-                                v-model="localFilters.department"
-                                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                <option value="">All Departments</option>
-                                <option v-for="dept in departments" :key="dept.id" :value="dept.id">
-                                    {{ dept.name }}
-                                </option>
-                            </select>
+                            <Label>Department</Label>
+                            <Select v-model="localFilters.department">
+                                <SelectTrigger>
+                                    <SelectValue placeholder="All Departments" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all_departments">All Departments</SelectItem>
+                                    <SelectItem v-for="dept in departments" :key="dept.id" :value="String(dept.id)">
+                                        {{ dept.name }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                         <div class="space-y-2">
-                            <Label for="sub_department">Sub-Department</Label>
-                            <select
-                                id="sub_department"
-                                v-model="localFilters.sub_department"
-                                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                <option value="">All Sub-Departments</option>
-                                <option v-for="sub in subDepartments" :key="sub.id" :value="sub.id">
-                                    {{ sub.name }}
-                                </option>
-                            </select>
+                            <Label>Sub-Department</Label>
+                            <Select v-model="localFilters.sub_department">
+                                <SelectTrigger>
+                                    <SelectValue placeholder="All Sub-Departments" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all_sub_departments">All Sub-Departments</SelectItem>
+                                    <SelectItem v-for="sub in subDepartments" :key="sub.id" :value="String(sub.id)">
+                                        {{ sub.name }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                         <div class="space-y-2">
-                            <Label for="employee">Employee</Label>
-                            <select
-                                id="employee"
-                                v-model="localFilters.employee"
-                                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                <option value="">All Employees</option>
-                                <option v-for="emp in employees" :key="emp.id" :value="emp.id">
-                                    {{ emp.name }} ({{ emp.employee_id }})
-                                </option>
-                            </select>
+                            <Label>Employee</Label>
+                            <Select v-model="localFilters.employee">
+                                <SelectTrigger>
+                                    <SelectValue placeholder="All Employees" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all_employees">All Employees</SelectItem>
+                                    <SelectItem v-for="emp in employees" :key="emp.id" :value="String(emp.id)">
+                                        {{ emp.name }} ({{ emp.employee_id }})
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                         <div class="flex items-end gap-2">
                             <Button @click="applyFilters">Apply</Button>
@@ -245,14 +299,14 @@ const formatMinutesToHours = (minutes: number | null) => {
                         <table class="w-full">
                             <thead>
                                 <tr class="border-b">
-                                    <th class="pb-3 text-left font-medium">Employee</th>
-                                    <th class="pb-3 text-left font-medium">Department</th>
-                                    <th class="pb-3 text-left font-medium">Date</th>
-                                    <th class="pb-3 text-left font-medium">Clock In</th>
-                                    <th class="pb-3 text-left font-medium">Clock Out</th>
-                                    <th class="pb-3 text-left font-medium">Net Hours</th>
-                                    <th class="pb-3 text-left font-medium">Status</th>
-                                    <th class="pb-3 text-left font-medium">Actions</th>
+                                    <th class="px-4 pb-3 text-left font-medium">Employee</th>
+                                    <th class="px-4 pb-3 text-left font-medium">Department</th>
+                                    <th class="px-4 pb-3 text-left font-medium">Date</th>
+                                    <th class="px-4 pb-3 text-left font-medium">Clock In</th>
+                                    <th class="px-4 pb-3 text-left font-medium">Clock Out</th>
+                                    <th class="px-4 pb-3 text-left font-medium">Net Hours</th>
+                                    <th class="px-4 pb-3 text-left font-medium">Status</th>
+                                    <th class="px-4 pb-3 text-left font-medium">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -261,27 +315,27 @@ const formatMinutesToHours = (minutes: number | null) => {
                                     :key="attendance.id"
                                     class="border-b last:border-0"
                                 >
-                                    <td class="py-3">
+                                    <td class="px-4 py-3">
                                         <div>
                                             <div class="font-medium">{{ attendance.user?.name }}</div>
                                             <div class="text-sm text-muted-foreground">{{ attendance.user?.employee_id }}</div>
                                         </div>
                                     </td>
-                                    <td class="py-3">
+                                    <td class="px-4 py-3">
                                         <div v-if="attendance?.user?.department" class="text-sm">{{ attendance.user?.department?.name }}</div>
                                         <div v-if="attendance.user?.sub_department" class="text-xs text-muted-foreground">
                                             {{ attendance.user?.sub_department?.name }}
                                         </div>
                                     </td>
-                                    <td class="py-3">{{ formatDate(attendance.date) }}</td>
-                                    <td class="py-3">{{ formatTime(attendance.clock_in) }}</td>
-                                    <td class="py-3">{{ formatTime(attendance.clock_out) }}</td>
-                                    <td class="py-3">{{ formatMinutesToHours(attendance.net_minutes) }}</td>
-                                    <td class="py-3">
+                                    <td class="px-4 py-3">{{ formatDate(attendance.date) }}</td>
+                                    <td class="px-4 py-3">{{ formatTime(attendance.clock_in) }}</td>
+                                    <td class="px-4 py-3">{{ formatTime(attendance.clock_out) }}</td>
+                                    <td class="px-4 py-3">{{ formatMinutesToHours(attendance.net_minutes) }}</td>
+                                    <td class="px-4 py-3">
                                         <Badge v-if="attendance.is_late" variant="destructive" class="text-xs">Late</Badge>
                                         <Badge v-else variant="outline" class="text-xs">On Time</Badge>
                                     </td>
-                                    <td class="py-3">
+                                    <td class="px-4 py-3">
                                         <!-- <Button
                                             variant="ghost"
                                             size="sm"

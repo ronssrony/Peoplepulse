@@ -2,11 +2,8 @@
 
 use App\Http\Controllers\AttendanceController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
-Route::get('/', function () {
-    return Inertia::render('Welcome');
-})->name('home');
+Route::redirect('/', '/login');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [AttendanceController::class, 'dashboard'])->name('dashboard');

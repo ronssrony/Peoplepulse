@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import NavMain from '@/components/NavMain.vue';
-import NavUser from '@/components/NavUser.vue';
+
 import {
     Sidebar,
     SidebarContent,
@@ -79,7 +79,7 @@ const mainNavItems = computed<NavItem[]>(() => {
         </SidebarContent>
 
         <SidebarFooter>
-            <NavUser />
+            <!-- User menu moved to header -->
         </SidebarFooter>
     </Sidebar>
     <slot />

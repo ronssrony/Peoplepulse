@@ -26,7 +26,7 @@ interface Employee {
     department_id: number | null;
     sub_department_id: number | null;
     department?: Department;
-    subDepartment?: SubDepartment;
+    sub_department?: SubDepartment;
     designation: string;
     role: 'admin' | 'manager' | 'user';
     managedSubDepartments?: SubDepartment[];
@@ -132,7 +132,7 @@ const deleteEmployee = (employeeId: number) => {
                                             {{ employee.department.name }}
                                         </div>
                                         <div v-if="employee.sub_department" class="text-xs text-muted-foreground">
-                                            {{ employee.sub_department.name }}
+                                            {{ employee.sub_department?.name }}
                                         </div>
                                         <div v-else-if="employee.role === 'manager' && employee.department" class="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
                                             • Manages all sub-departments

@@ -3,6 +3,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import ClockInButton from '@/components/ClockInButton.vue';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { type BreadcrumbItem, type Attendance, type AttendanceStats } from '@/types';
 import { Head, router, usePage } from '@inertiajs/vue3';
@@ -43,10 +44,10 @@ const canClockOut = computed(() => {
 });
 
 const currentStatus = computed(() => {
+    if (props.todayAttendance?.clock_in && !props.todayAttendance?.clock_out) return 'working';
+    if (props.todayAttendance?.clock_out) return 'clocked_out';
     if (props.isWeekend) return 'weekend';
-    if (!props.todayAttendance || !props.todayAttendance.clock_in) return 'not_clocked_in';
-    if (props.todayAttendance.clock_out) return 'clocked_out';
-    return 'working';
+    return 'not_clocked_in';
 });
 
 const formatTime = (dateString: string | null) => {
@@ -82,6 +83,19 @@ const clockOut = () => {
             isProcessing.value = false;
         },
     });
+};
+const buttonStatus = computed(() => {
+    if (currentStatus.value === 'working') return 'working';
+    if (currentStatus.value === 'clocked_out') return 'clocked_out';
+    return 'idle';
+});
+
+const handleClockAction = () => {
+    if (buttonStatus.value === 'idle') {
+        clockIn();
+    } else if (buttonStatus.value === 'working') {
+        clockOut();
+    }
 };
 </script>
 
@@ -161,32 +175,21 @@ const clockOut = () => {
                         </div>
                     </div>
 
-                    <!-- Clock In/Out Buttons -->
+                    <!-- Clock In/Out Action -->
                     <div class="mt-6 flex flex-wrap items-center gap-4">
-                        <Button
-                            @click="clockIn"
-                            :disabled="isProcessing || !canClockIn"
-                            class="flex items-center gap-2"
-                            size="lg"
-                        >
-                            <LogIn class="h-4 w-4" />
-                            Clock In
-                        </Button>
-                        <Button
-                            @click="clockOut"
-                            :disabled="isProcessing || !canClockOut"
-                            variant="outline"
-                            class="flex items-center gap-2"
-                            size="lg"
-                        >
-                            <LogOut class="h-4 w-4" />
-                            Clock Out
-                        </Button>
-                        <div v-if="isWeekend" class="rounded-lg bg-blue-50 px-4 py-2 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-                            📅 Note: Today is your weekend day
+                        <ClockInButton
+                            :status="buttonStatus"
+                            :loading="isProcessing"
+                            @click="handleClockAction"
+                        />
+                        
+                        <div v-if="isWeekend" class="text-sm text-muted-foreground flex items-center gap-2">
+                            <span class="inline-block h-2 w-2 rounded-full bg-blue-500"></span>
+                            Today is your weekend day
                         </div>
-                        <div v-if="currentStatus === 'clocked_out'" class="rounded-lg bg-green-50 px-4 py-2 text-green-700 dark:bg-green-950 dark:text-green-300">
-                            ✅ You've completed your workday!
+                        <div v-if="currentStatus === 'clocked_out'" class="text-sm text-muted-foreground flex items-center gap-2">
+                             <span class="inline-block h-2 w-2 rounded-full bg-green-500"></span>
+                            You've completed your workday!
                         </div>
                     </div>
 

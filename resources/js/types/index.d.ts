@@ -31,8 +31,8 @@ export interface User {
     employee_id: string;
     name: string;
     email: string;
-    department: string;
-    sub_department?: string;
+    department?: { id: number; name: string };
+    sub_department?: { id: number; name: string };
     designation: string;
     role: 'admin' | 'manager' | 'user';
     weekend_days: string[];

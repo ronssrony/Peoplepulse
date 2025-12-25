@@ -19,8 +19,8 @@ defineProps<{
 
 <template>
     <AuthBase
-        title="Log in to your account"
-        description="Enter your email and password below to log in"
+        title="Welcome back"
+        description="Sign in to manage attendance and workforce activity"
     >
         <Head title="Log in" />
 
