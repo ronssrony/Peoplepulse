@@ -93,7 +93,39 @@ class User extends Authenticatable
     }
 
     /**
-     * Get the sub-departments that this manager manages (only for managers).
+     * Get the sub-departments that this manager manages.
+     * If manager has a sub_department, they manage only that sub_department.
+     * If manager has no sub_department but has a department, they manage all sub_departments in that department.
+     */
+    public function getManagedSubDepartments()
+    {
+        if (!$this->isManager() && !$this->isAdmin()) {
+            return collect([]);
+        }
+
+        // If manager has a specific sub_department, they manage only that one
+        if ($this->sub_department_id) {
+            return SubDepartment::where('id', $this->sub_department_id)->get();
+        }
+
+        // If manager has a department but no sub_department, they manage all sub_departments in that department
+        if ($this->department_id) {
+            return SubDepartment::where('department_id', $this->department_id)->get();
+        }
+
+        return collect([]);
+    }
+
+    /**
+     * Get the IDs of sub-departments that this manager manages.
+     */
+    public function getManagedSubDepartmentIds(): array
+    {
+        return $this->getManagedSubDepartments()->pluck('id')->toArray();
+    }
+
+    /**
+     * @deprecated This relationship is no longer used. Use getManagedSubDepartments() instead.
      */
     public function managedSubDepartments(): BelongsToMany
     {

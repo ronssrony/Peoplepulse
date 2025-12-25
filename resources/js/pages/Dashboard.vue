@@ -105,7 +105,7 @@ const clockOut = () => {
                 <h1 class="text-2xl font-bold">Welcome back, {{ user.name }}!</h1>
                 <p class="text-muted-foreground">
                     {{ user.designation }}
-                    <span v-if="user.sub_department"> / {{ user.sub_department }}</span>
+                    <span v-if="user?.sub_department"> / {{ user?.sub_department?.name }}</span>
                 </p>
             </div>
 

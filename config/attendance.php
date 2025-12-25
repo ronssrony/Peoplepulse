@@ -10,7 +10,7 @@ return [
     | Format: HH:MM (24-hour format)
     |
     */
-    'office_start_time' => env('OFFICE_START_TIME', '09:00'),
+    'office_start_time' => env('OFFICE_START_TIME', '09:30'),
 
     /*
     |--------------------------------------------------------------------------
@@ -20,7 +20,7 @@ return [
     | Number of minutes after office start time before marking as late.
     |
     */
-    'late_grace_minutes' => env('LATE_GRACE_MINUTES', 15),
+    'late_grace_minutes' => (int) env('LATE_GRACE_MINUTES', 15),
 
     /*
     |--------------------------------------------------------------------------
@@ -41,7 +41,7 @@ return [
     | Default break duration in minutes to subtract from gross hours.
     |
     */
-    'default_break_minutes' => env('DEFAULT_BREAK_MINUTES', 60),
+    'default_break_minutes' => (int) env('DEFAULT_BREAK_MINUTES', 60),
 
     /*
     |--------------------------------------------------------------------------

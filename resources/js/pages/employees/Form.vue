@@ -4,10 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import type { BreadcrumbItem } from '@/types';
 import { Head, useForm } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 interface SubDepartment {
     id: number;
@@ -17,7 +16,7 @@ interface SubDepartment {
 interface Department {
     id: number;
     name: string;
-    subDepartments: SubDepartment[];
+    sub_departments: SubDepartment[];
 }
 
 interface Employee {
@@ -34,29 +33,33 @@ interface Employee {
 }
 
 interface Props {
-    employee: Employee;
+    employee?: Employee | null;
     departments: Department[];
 }
 
 const props = defineProps<Props>();
 
-const breadcrumbs: BreadcrumbItem[] = [
+const isEditMode = computed(() => !!props.employee);
+
+const breadcrumbs = computed<BreadcrumbItem[]>(() => [
     { title: 'Dashboard', href: '/dashboard' },
     { title: 'Employee Management', href: '/employees' },
-    { title: 'Edit Employee', href: `/employees/${props.employee.id}/edit` },
-];
+    { title: isEditMode.value ? 'Edit Employee' : 'Create Employee', href: isEditMode.value ? `/employees/${props.employee?.id}/edit` : '/employees/create' },
+]);
 
-const managedSubDeptIds = props.employee.managedSubDepartments?.map(sd => sd.id) || [];
+// Use separate ref for weekend days to work with native checkboxes
+const selectedWeekendDays = ref<string[]>(props.employee?.weekend_days ? [...props.employee.weekend_days] : []);
 
 const form = useForm({
-    employee_id: props.employee.employee_id,
-    name: props.employee.name,
-    department_id: props.employee.department_id,
-    sub_department_id: props.employee.sub_department_id,
-    designation: props.employee.designation,
-    role: props.employee.role,
-    weekend_days: [...props.employee.weekend_days],
-    managed_sub_departments: [...managedSubDeptIds],
+    employee_id: props.employee?.employee_id || '',
+    name: props.employee?.name || '',
+    email: props.employee?.email || '',
+    password: '',
+    department_id: props.employee?.department_id || null as number | null,
+    sub_department_id: props.employee?.sub_department_id || null as number | null,
+    designation: props.employee?.designation || '',
+    role: props.employee?.role || 'user' as 'user' | 'manager' | 'admin',
+    weekend_days: [] as string[],
 });
 
 const weekendOptions = [
@@ -70,43 +73,43 @@ const selectedDepartment = computed(() => {
 });
 
 const availableSubDepartments = computed(() => {
-    return selectedDepartment.value?.subDepartments || [];
+    return selectedDepartment.value?.sub_departments || [];
 });
 
-const toggleWeekendDay = (day: string) => {
-    const index = form.weekend_days.indexOf(day);
-    if (index > -1) {
-        form.weekend_days.splice(index, 1);
-    } else {
-        form.weekend_days.push(day);
-    }
-};
-
-const toggleManagedSubDept = (subDeptId: number) => {
-    const index = form.managed_sub_departments.indexOf(subDeptId);
-    if (index > -1) {
-        form.managed_sub_departments.splice(index, 1);
-    } else {
-        form.managed_sub_departments.push(subDeptId);
-    }
-};
-
 const submit = () => {
-    form.put(`/employees/${props.employee.id}`, {
-        preserveScroll: true,
-    });
+    form.weekend_days = selectedWeekendDays.value;
+
+    if (isEditMode.value) {
+        form.put(`/employees/${props.employee!.id}`, {
+            preserveScroll: true,
+        });
+    } else {
+        form.post('/employees', {
+            preserveScroll: true,
+        });
+    }
 };
+
+// Watch department changes and reset sub_department if not available
+watch(() => form.department_id, (newDeptId, oldDeptId) => {
+    if (newDeptId !== oldDeptId) {
+        const isValid = availableSubDepartments.value.some(sd => sd.id === form.sub_department_id);
+        if (!isValid) {
+            form.sub_department_id = null;
+        }
+    }
+});
 </script>
 
 <template>
-    <Head title="Edit Employee" />
+    <Head :title="isEditMode ? 'Edit Employee' : 'Create Employee'" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-col gap-6 p-4 md:p-6">
             <!-- Header -->
             <div>
-                <h1 class="text-2xl font-bold">Edit Employee</h1>
-                <p class="text-muted-foreground">Update employee information</p>
+                <h1 class="text-2xl font-bold">{{ isEditMode ? 'Edit Employee' : 'Create Employee' }}</h1>
+                <p class="text-muted-foreground">{{ isEditMode ? 'Update employee information' : 'Add a new employee to the system' }}</p>
             </div>
 
             <!-- Form -->
@@ -139,26 +142,39 @@ const submit = () => {
                                 <p v-if="form.errors.name" class="text-sm text-destructive">{{ form.errors.name }}</p>
                             </div>
                             <div class="space-y-2">
-                                <Label for="email">Email (Read-only)</Label>
+                                <Label for="email">Email <span v-if="!isEditMode">*</span><span v-else>(Read-only)</span></Label>
                                 <Input
                                     id="email"
                                     type="email"
-                                    :value="employee.email"
-                                    disabled
-                                    class="opacity-60"
+                                    v-model="form.email"
+                                    :required="!isEditMode"
+                                    :disabled="isEditMode"
+                                    :class="{ 'opacity-60': isEditMode }"
+                                    placeholder="john@example.com"
                                 />
-                                <p class="text-xs text-muted-foreground">Email cannot be changed</p>
+                                <p v-if="isEditMode" class="text-xs text-muted-foreground">Email cannot be changed</p>
+                                <p v-if="form.errors.email" class="text-sm text-destructive">{{ form.errors.email }}</p>
                             </div>
                             <div class="space-y-2">
-                                <Label for="password">Password (Read-only)</Label>
+                                <Label for="password">Password <span v-if="!isEditMode">*</span><span v-else>(Read-only)</span></Label>
                                 <Input
+                                    v-if="!isEditMode"
+                                    id="password"
+                                    type="password"
+                                    v-model="form.password"
+                                    required
+                                    placeholder="********"
+                                />
+                                <Input
+                                    v-else
                                     id="password"
                                     type="password"
                                     value="********"
                                     disabled
                                     class="opacity-60"
                                 />
-                                <p class="text-xs text-muted-foreground">Password cannot be changed here</p>
+                                <p v-if="isEditMode" class="text-xs text-muted-foreground">Password cannot be changed here</p>
+                                <p v-if="form.errors.password" class="text-sm text-destructive">{{ form.errors.password }}</p>
                             </div>
                         </CardContent>
                     </Card>
@@ -232,49 +248,51 @@ const submit = () => {
                         <CardContent>
                             <div class="flex flex-wrap gap-4">
                                 <div v-for="option in weekendOptions" :key="option.value" class="flex items-center space-x-2">
-                                    <Checkbox
+                                    <input
+                                        type="checkbox"
                                         :id="option.value"
-                                        :checked="form.weekend_days.includes(option.value)"
-                                        @update:checked="toggleWeekendDay(option.value)"
+                                        :value="option.value"
+                                        v-model="selectedWeekendDays"
+                                        class="h-4 w-4 rounded border-gray-300"
                                     />
                                     <Label :for="option.value" class="cursor-pointer">{{ option.label }}</Label>
                                 </div>
                             </div>
+                            <p class="mt-2 text-sm text-muted-foreground">Select at least one weekend day</p>
                             <p v-if="form.errors.weekend_days" class="mt-2 text-sm text-destructive">{{ form.errors.weekend_days }}</p>
                         </CardContent>
                     </Card>
 
-                    <!-- Manager Sub-Departments (only show for managers) -->
+                    <!-- Manager Info Card -->
                     <Card v-if="form.role === 'manager'">
                         <CardHeader>
-                            <CardTitle>Managed Sub-Departments</CardTitle>
+                            <CardTitle>Manager Responsibilities</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div class="grid gap-3 md:grid-cols-3">
-                                <div
-                                    v-for="dept in departments"
-                                    :key="dept.id"
-                                    class="space-y-2"
-                                >
-                                    <div class="font-medium text-sm">{{ dept.name }}</div>
-                                    <div v-for="subDept in dept.subDepartments" :key="subDept.id" class="flex items-center space-x-2 ml-4">
-                                        <Checkbox
-                                            :id="`managed-${subDept.id}`"
-                                            :checked="form.managed_sub_departments.includes(subDept.id)"
-                                            @update:checked="toggleManagedSubDept(subDept.id)"
-                                        />
-                                        <Label :for="`managed-${subDept.id}`" class="cursor-pointer text-sm">{{ subDept.name }}</Label>
-                                    </div>
-                                </div>
+                            <div class="space-y-2">
+                                <ul class="text-sm text-muted-foreground list-disc list-inside space-y-1">
+                                    <li v-if="!form.department_id">Please assign a department to this manager.</li>
+                                    <li v-else-if="form.sub_department_id">
+                                        This manager will manage only the <strong class="text-foreground">{{ availableSubDepartments.find(sd => sd.id === form.sub_department_id)?.name || 'selected sub-department' }}</strong>.
+                                    </li>
+                                    <li v-else-if="availableSubDepartments.length > 0">
+                                        This manager will manage <strong class="text-foreground">all sub-departments</strong> in the <strong class="text-foreground">{{ departments.find(d => d.id === form.department_id)?.name }}</strong> department:
+                                        <ul class="ml-6 mt-1">
+                                            <li v-for="subDept in availableSubDepartments" :key="subDept.id">• {{ subDept.name }}</li>
+                                        </ul>
+                                    </li>
+                                    <li v-else>
+                                        This manager will manage the <strong class="text-foreground">{{ departments.find(d => d.id === form.department_id)?.name }}</strong> department (no sub-departments available).
+                                    </li>
+                                </ul>
                             </div>
-                            <p v-if="form.errors.managed_sub_departments" class="mt-2 text-sm text-destructive">{{ form.errors.managed_sub_departments }}</p>
                         </CardContent>
                     </Card>
 
                     <!-- Actions -->
                     <div class="flex items-center gap-4">
                         <Button type="submit" :disabled="form.processing">
-                            Update Employee
+                            {{ isEditMode ? 'Update Employee' : 'Create Employee' }}
                         </Button>
                         <Button type="button" variant="outline" as-child>
                             <a href="/employees">Cancel</a>

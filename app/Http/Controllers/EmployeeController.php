@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -23,7 +24,7 @@ class EmployeeController extends Controller
             abort(403, 'Unauthorized access.');
         }
 
-        $employees = User::with(['department:id,name', 'subDepartment:id,name', 'managedSubDepartments:id,name'])
+        $employees = User::with(['department:id,name', 'subDepartment:id,name'])
             ->orderBy('created_at', 'desc')
             ->paginate(30);
 
@@ -48,7 +49,8 @@ class EmployeeController extends Controller
 
         $departments = Department::active()->with('subDepartments')->get();
 
-        return Inertia::render('employees/Create', [
+        return Inertia::render('employees/Form', [
+            'employee' => null,
             'departments' => $departments,
         ]);
     }
@@ -62,6 +64,7 @@ class EmployeeController extends Controller
             abort(403, 'Unauthorized access.');
         }
 
+        Log::info('Storing new employee', $request->all());
         $validated = $request->validate([
             'employee_id' => ['required', 'string', 'unique:users,employee_id'],
             'name' => ['required', 'string', 'max:255'],
@@ -71,9 +74,8 @@ class EmployeeController extends Controller
             'sub_department_id' => ['nullable', 'exists:sub_departments,id'],
             'designation' => ['required', 'string', 'max:255'],
             'role' => ['required', Rule::in(['user', 'manager', 'admin'])],
-            'weekend_days' => ['required', 'array'],
-            'managed_sub_departments' => ['nullable', 'array'],
-            'managed_sub_departments.*' => ['exists:sub_departments,id'],
+            'weekend_days' => ['required', 'array', 'min:1'],
+            'weekend_days.*' => ['string', Rule::in(['friday', 'saturday', 'sunday'])],
         ]);
 
         $user = User::create([
@@ -89,11 +91,6 @@ class EmployeeController extends Controller
             'email_verified_at' => now(),
         ]);
 
-        // Attach managed sub-departments for managers
-        if ($validated['role'] === 'manager' && !empty($validated['managed_sub_departments'])) {
-            $user->managedSubDepartments()->attach($validated['managed_sub_departments']);
-        }
-
         return redirect()->route('employees.index')->with('success', 'Employee created successfully!');
     }
 
@@ -106,10 +103,10 @@ class EmployeeController extends Controller
             abort(403, 'Unauthorized access.');
         }
 
-        $employee->load(['department', 'subDepartment', 'managedSubDepartments']);
+        $employee->load(['department', 'subDepartment']);
         $departments = Department::active()->with('subDepartments')->get();
 
-        return Inertia::render('employees/Edit', [
+        return Inertia::render('employees/Form', [
             'employee' => $employee,
             'departments' => $departments,
         ]);
@@ -131,9 +128,8 @@ class EmployeeController extends Controller
             'sub_department_id' => ['nullable', 'exists:sub_departments,id'],
             'designation' => ['required', 'string', 'max:255'],
             'role' => ['required', Rule::in(['user', 'manager', 'admin'])],
-            'weekend_days' => ['required', 'array'],
-            'managed_sub_departments' => ['nullable', 'array'],
-            'managed_sub_departments.*' => ['exists:sub_departments,id'],
+            'weekend_days' => ['required', 'array', 'min:1'],
+            'weekend_days.*' => ['string', Rule::in(['friday', 'saturday', 'sunday'])],
         ]);
 
         $employee->update([
@@ -146,13 +142,6 @@ class EmployeeController extends Controller
             'weekend_days' => $validated['weekend_days'],
         ]);
 
-        // Sync managed sub-departments for managers
-        if ($validated['role'] === 'manager') {
-            $employee->managedSubDepartments()->sync($validated['managed_sub_departments'] ?? []);
-        } else {
-            $employee->managedSubDepartments()->detach();
-        }
-
         return redirect()->route('employees.index')->with('success', 'Employee updated successfully!');
     }
 
@@ -163,6 +152,11 @@ class EmployeeController extends Controller
     {
         if (!$request->user()->isAdmin()) {
             abort(403, 'Unauthorized access.');
+        }
+
+        // Prevent admin from deleting themselves
+        if ($request->user()->id === $employee->id) {
+            return redirect()->route('employees.index')->with('error', 'You cannot delete yourself!');
         }
 
         $employee->delete();

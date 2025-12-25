@@ -268,7 +268,7 @@ const formatMinutesToHours = (minutes: number | null) => {
                                         </div>
                                     </td>
                                     <td class="py-3">
-                                        <div class="text-sm">{{ attendance.user?.department?.name }}</div>
+                                        <div v-if="attendance?.user?.department" class="text-sm">{{ attendance.user?.department?.name }}</div>
                                         <div v-if="attendance.user?.sub_department" class="text-xs text-muted-foreground">
                                             {{ attendance.user?.sub_department?.name }}
                                         </div>

@@ -4,8 +4,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { BreadcrumbItem, PaginatedData } from '@/types';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { Plus, Edit, Trash2, UserCog } from 'lucide-vue-next';
+import { computed } from 'vue';
 
 interface Department {
     id: number;
@@ -38,6 +39,9 @@ interface Props {
 
 const props = defineProps<Props>();
 
+const page = usePage();
+const currentUser = computed(() => page.props.auth?.user);
+
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
     { title: 'Employee Management', href: '/employees' },
@@ -52,6 +56,10 @@ const getRoleBadgeVariant = (role: string) => {
         default:
             return 'secondary';
     }
+};
+
+const isCurrentUser = (employee: Employee) => {
+    return currentUser.value?.id === employee.id;
 };
 
 const deleteEmployee = (employeeId: number) => {
@@ -101,7 +109,6 @@ const deleteEmployee = (employeeId: number) => {
                                     <th class="pb-3 text-left font-medium">Department</th>
                                     <th class="pb-3 text-left font-medium">Designation</th>
                                     <th class="pb-3 text-left font-medium">Role</th>
-                                    <th class="pb-3 text-left font-medium">Managed Sub-Depts</th>
                                     <th class="pb-3 text-left font-medium">Actions</th>
                                 </tr>
                             </thead>
@@ -124,8 +131,11 @@ const deleteEmployee = (employeeId: number) => {
                                         <div v-if="employee.department" class="text-sm">
                                             {{ employee.department.name }}
                                         </div>
-                                        <div v-if="employee.subDepartment" class="text-xs text-muted-foreground">
-                                            {{ employee.subDepartment.name }}
+                                        <div v-if="employee.sub_department" class="text-xs text-muted-foreground">
+                                            {{ employee.sub_department.name }}
+                                        </div>
+                                        <div v-else-if="employee.role === 'manager' && employee.department" class="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
+                                            • Manages all sub-departments
                                         </div>
                                     </td>
                                     <td class="py-3 text-sm">
@@ -135,14 +145,6 @@ const deleteEmployee = (employeeId: number) => {
                                         <Badge :variant="getRoleBadgeVariant(employee.role)" class="text-xs capitalize">
                                             {{ employee.role }}
                                         </Badge>
-                                    </td>
-                                    <td class="py-3">
-                                        <div v-if="employee.role === 'manager' && employee.managedSubDepartments && employee.managedSubDepartments.length > 0" class="text-xs">
-                                            <div v-for="subDept in employee.managedSubDepartments" :key="subDept.id" class="text-muted-foreground">
-                                                • {{ subDept.name }}
-                                            </div>
-                                        </div>
-                                        <span v-else class="text-xs text-muted-foreground">-</span>
                                     </td>
                                     <td class="py-3">
                                         <div class="flex items-center gap-2">
@@ -159,7 +161,13 @@ const deleteEmployee = (employeeId: number) => {
                                                 variant="ghost"
                                                 size="sm"
                                                 @click="deleteEmployee(employee.id)"
-                                                class="text-destructive hover:text-destructive"
+                                                :disabled="isCurrentUser(employee)"
+                                                :class="[
+                                                    isCurrentUser(employee)
+                                                        ? 'opacity-50 cursor-not-allowed'
+                                                        : 'text-destructive hover:text-destructive'
+                                                ]"
+                                                :title="isCurrentUser(employee) ? 'You cannot delete yourself' : 'Delete employee'"
                                             >
                                                 <Trash2 class="h-4 w-4" />
                                             </Button>
@@ -167,7 +175,7 @@ const deleteEmployee = (employeeId: number) => {
                                     </td>
                                 </tr>
                                 <tr v-if="employees.data.length === 0">
-                                    <td colspan="8" class="py-8 text-center text-muted-foreground">
+                                    <td colspan="7" class="py-8 text-center text-muted-foreground">
                                         No employees found.
                                     </td>
                                 </tr>

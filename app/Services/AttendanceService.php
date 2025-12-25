@@ -17,13 +17,13 @@ class AttendanceService
     {
         $today = Carbon::today();
         $now = Carbon::now();
-        
+
         // Determine if late
         $officeStartTime = $this->getOfficeStartTime($today);
         $graceMinutes = config('attendance.late_grace_minutes', 15);
         $lateThreshold = $officeStartTime->copy()->addMinutes($graceMinutes);
         $isLate = $now->greaterThan($lateThreshold);
-        
+
         // Calculate late minutes (from office start time)
         $lateMinutes = 0;
         if ($isLate) {
@@ -32,7 +32,7 @@ class AttendanceService
 
         // Check if already clocked in today
         $existing = Attendance::forUser($user->id)->forDate($today)->first();
-        
+
         if ($existing && $existing->hasClockedIn()) {
             throw new \Exception('You have already clocked in today.');
         }
@@ -119,7 +119,7 @@ class AttendanceService
             // Log all changes
             foreach ($data as $field => $newValue) {
                 $oldValue = $attendance->{$field};
-                
+
                 if ($oldValue != $newValue) {
                     AttendanceAuditLog::create([
                         'attendance_id' => $attendance->id,
@@ -135,11 +135,11 @@ class AttendanceService
 
             // If clock_in or clock_out changed, recalculate hours
             if (isset($data['clock_in']) || isset($data['clock_out'])) {
-                $clockIn = isset($data['clock_in']) 
-                    ? Carbon::parse($data['clock_in']) 
+                $clockIn = isset($data['clock_in'])
+                    ? Carbon::parse($data['clock_in'])
                     : $attendance->clock_in;
-                $clockOut = isset($data['clock_out']) 
-                    ? Carbon::parse($data['clock_out']) 
+                $clockOut = isset($data['clock_out'])
+                    ? Carbon::parse($data['clock_out'])
                     : $attendance->clock_out;
 
                 if ($clockIn && $clockOut) {
@@ -244,9 +244,9 @@ class AttendanceService
      */
     protected function getOfficeStartTime(Carbon $date): Carbon
     {
-        $startTime = config('attendance.office_start_time', '09:00');
+        $startTime = config('attendance.office_start_time', '09:30');
         [$hours, $minutes] = explode(':', $startTime);
-        
+
         return $date->copy()->setTime((int) $hours, (int) $minutes);
     }
 
@@ -255,9 +255,9 @@ class AttendanceService
      */
     protected function getOfficeEndTime(Carbon $date): Carbon
     {
-        $endTime = config('attendance.office_end_time', '18:00');
+        $endTime = config('attendance.office_end_time', '17:30');
         [$hours, $minutes] = explode(':', $endTime);
-        
+
         return $date->copy()->setTime((int) $hours, (int) $minutes);
     }
 
@@ -278,8 +278,8 @@ class AttendanceService
             'total_days' => $attendances->count(),
             'late_days' => $attendances->where('is_late', true)->count(),
             'total_net_hours' => round($attendances->sum('net_minutes') / 60, 2),
-            'average_net_hours' => $attendances->count() > 0 
-                ? round($attendances->avg('net_minutes') / 60, 2) 
+            'average_net_hours' => $attendances->count() > 0
+                ? round($attendances->avg('net_minutes') / 60, 2)
                 : 0,
         ];
     }
@@ -307,7 +307,7 @@ class AttendanceService
 
         foreach ($users as $user) {
             $attendance = $attendances->get($user->id);
-            
+
             if ($attendance && $attendance->hasClockedIn()) {
                 $summary['present']++;
                 if ($attendance->is_late) {

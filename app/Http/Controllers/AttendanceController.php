@@ -100,15 +100,18 @@ class AttendanceController extends Controller
         $subDepartmentId = $request->input('sub_department');
 
         // Get sub-department IDs that this manager manages
-        $managedSubDepartmentIds = $user->managedSubDepartments()->pluck('sub_departments.id')->toArray();
+        $managedSubDepartmentIds = $user->getManagedSubDepartmentIds();
 
         $query = Attendance::with(['user.department', 'user.subDepartment'])
             ->whereBetween('date', [$startDate, $endDate])
             ->whereHas('user', function ($q) use ($managedSubDepartmentIds, $subDepartmentId) {
                 if ($subDepartmentId && in_array($subDepartmentId, $managedSubDepartmentIds)) {
                     $q->where('sub_department_id', $subDepartmentId);
-                } else {
+                } elseif (!empty($managedSubDepartmentIds)) {
                     $q->whereIn('sub_department_id', $managedSubDepartmentIds);
+                } else {
+                    // If no managed sub-departments, show nothing
+                    $q->whereRaw('1 = 0');
                 }
             });
 
@@ -124,7 +127,7 @@ class AttendanceController extends Controller
         }
 
         // Get sub-departments that this manager manages
-        $subDepartments = $user->managedSubDepartments()->get(['sub_departments.id', 'sub_departments.name']);
+        $subDepartments = $user->getManagedSubDepartments();
 
         return Inertia::render('attendance/ManagerDashboard', [
             'attendances' => $attendances,
