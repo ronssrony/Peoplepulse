@@ -19,8 +19,7 @@ defineProps<{
 
 <template>
     <AuthBase
-        title="Welcome back"
-        description="Sign in to manage attendance and workforce activity"
+        title="Peoplepulse"
     >
         <Head title="Log in" />
 
@@ -54,17 +53,7 @@ defineProps<{
                 </div>
 
                 <div class="grid gap-2">
-                    <div class="flex items-center justify-between">
-                        <Label for="password">Password</Label>
-                        <TextLink
-                            v-if="canResetPassword"
-                            :href="request()"
-                            class="text-sm"
-                            :tabindex="5"
-                        >
-                            Forgot password?
-                        </TextLink>
-                    </div>
+                    <Label for="password">Password</Label>
                     <Input
                         id="password"
                         type="password"

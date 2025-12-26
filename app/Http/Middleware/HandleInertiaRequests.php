@@ -41,9 +41,6 @@ class HandleInertiaRequests extends Middleware
         $user = $request->user();
         if ($user) {
             $user->load(['department:id,name', 'subDepartment:id,name']);
-            // Add department and sub_department as string properties for backward compatibility
-            $user->department = $user->department?->name;
-            $user->sub_department = $user->subDepartment?->name;
         }
 
         return [

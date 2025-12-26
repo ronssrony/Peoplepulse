@@ -116,7 +116,7 @@ const handleClockAction = () => {
 
             <!-- Welcome Message -->
             <div>
-                <h1 class="text-2xl font-bold">Welcome back, {{ user.name }}!</h1>
+                <h1 class="text-2xl font-bold">Welcome back, {{ user.name }}</h1>
                 <p class="text-muted-foreground">
                     {{ user.designation }}
                     <span v-if="user?.sub_department"> / {{ user?.sub_department?.name }}</span>
@@ -182,7 +182,7 @@ const handleClockAction = () => {
                             :loading="isProcessing"
                             @click="handleClockAction"
                         />
-                        
+
                         <div v-if="isWeekend" class="text-sm text-muted-foreground flex items-center gap-2">
                             <span class="inline-block h-2 w-2 rounded-full bg-blue-500"></span>
                             Today is your weekend day
