@@ -13,14 +13,19 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import type { Attendance, AttendanceFilters, BreadcrumbItem, PaginatedData } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { Edit, Clock, CalendarIcon } from 'lucide-vue-next';
-import { ref, computed } from 'vue';
+import { Edit2, Clock, Download, X, Users, AlertTriangle, UserCheck, UserX, Trash2, Play, Pause } from 'lucide-vue-next';
+import { ref, computed, watch } from 'vue';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
+import DateRangePicker from '@/components/ui/date-range-picker/DateRangePicker.vue';
 
 interface Department {
     id: number;
@@ -78,8 +83,6 @@ const localFilters = ref({
 
 const showOverrideModal = ref(false);
 const selectedAttendance = ref<Attendance | null>(null);
-const isStartDateOpen = ref(false);
-const isEndDateOpen = ref(false);
 
 const overrideForm = useForm({
     clock_in: '',
@@ -93,7 +96,6 @@ const applyFilters = () => {
     const filters = { ...localFilters.value };
     
     // Sanitize filters: convert 'all_*' or null/undefined to empty string
-    if (filters.department === 'all_departments') filters.department = '';
     if (filters.sub_department === 'all_sub_departments') filters.sub_department = '';
     if (filters.employee === 'all_employees') filters.employee = '';
 
@@ -111,8 +113,31 @@ const resetFilters = () => {
         sub_department: '',
         employee: '',
     };
-    router.get('/attendance/admin');
+    applyFilters();
 };
+
+const setToday = () => {
+    const today = new Date().toISOString().split('T')[0];
+    localFilters.value.start_date = today;
+    localFilters.value.end_date = today;
+    applyFilters();
+};
+
+const exportData = (type: 'csv' | 'xlsx' = 'csv') => {
+    const params = new URLSearchParams();
+    if (localFilters.value.start_date) params.append('start_date', localFilters.value.start_date);
+    if (localFilters.value.end_date) params.append('end_date', localFilters.value.end_date);
+    if (localFilters.value.department && localFilters.value.department !== 'all_departments') params.append('department', localFilters.value.department);
+    if (localFilters.value.sub_department && localFilters.value.sub_department !== 'all_sub_departments') params.append('sub_department', localFilters.value.sub_department);
+    if (localFilters.value.employee && localFilters.value.employee !== 'all_employees') params.append('employee', localFilters.value.employee);
+    params.append('type', type);
+
+    window.location.href = `/attendance/export?${params.toString()}`;
+};
+
+// Immediate filter application for selects
+watch(() => localFilters.value.sub_department, () => applyFilters());
+watch(() => localFilters.value.employee, () => applyFilters());
 
 const openOverrideModal = (attendance: Attendance) => {
     selectedAttendance.value = attendance;
@@ -160,14 +185,12 @@ const formatMinutesToHours = (minutes: number | null) => {
     return `${hours}h ${mins}m`;
 };
 
-const formatDateForDisplay = (dateString: string) => {
-    if (!dateString) return 'Pick a date';
-    return new Date(dateString).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-    });
-};
+const hasActiveFilters = computed(() => {
+    return localFilters.value.start_date || 
+           localFilters.value.end_date || 
+           (localFilters.value.sub_department && localFilters.value.sub_department !== 'all_sub_departments') ||
+           (localFilters.value.employee && localFilters.value.employee !== 'all_employees');
+});
 </script>
 
 <template>
@@ -188,69 +211,20 @@ const formatDateForDisplay = (dateString: string) => {
                     <CardTitle>Filters</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div class="grid gap-4 md:grid-cols-6">
-
-                        <div class="space-y-2">
-                             <Label>Start Date</Label>
-                             <Popover v-model:open="isStartDateOpen">
-                                <PopoverTrigger as-child>
-                                    <Button
-                                        variant="outline"
-                                        :class="cn(
-                                            'w-full justify-start text-left font-normal',
-                                            !localFilters.start_date && 'text-muted-foreground'
-                                        )"
-                                    >
-                                        <CalendarIcon class="mr-2 h-4 w-4" />
-                                        {{ formatDateForDisplay(localFilters.start_date) }}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent class="w-auto p-0" align="start">
-                                    <Calendar 
-                                        :model-value="localFilters.start_date"
-                                        @update:model-value="(v) => { localFilters.start_date = v; isStartDateOpen = false; }"
-                                    />
-                                </PopoverContent>
-                            </Popover>
+                    <div class="grid gap-4 md:grid-cols-12 items-end">
+                        
+                        <div class="col-span-12 md:col-span-3 space-y-2">
+                            <Label>Date Range</Label>
+                            <DateRangePicker 
+                                :start-date="localFilters.start_date"
+                                :end-date="localFilters.end_date"
+                                @update:start-date="(v) => localFilters.start_date = v"
+                                @update:end-date="(v) => localFilters.end_date = v"
+                                @apply="applyFilters"
+                            />
                         </div>
-                        <div class="space-y-2">
-                            <Label>End Date</Label>
-                             <Popover v-model:open="isEndDateOpen">
-                                <PopoverTrigger as-child>
-                                    <Button
-                                        variant="outline"
-                                        :class="cn(
-                                            'w-full justify-start text-left font-normal',
-                                            !localFilters.end_date && 'text-muted-foreground'
-                                        )"
-                                    >
-                                        <CalendarIcon class="mr-2 h-4 w-4" />
-                                        {{ formatDateForDisplay(localFilters.end_date) }}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent class="w-auto p-0" align="start">
-                                    <Calendar 
-                                        :model-value="localFilters.end_date"
-                                        @update:model-value="(v) => { localFilters.end_date = v; isEndDateOpen = false; }"
-                                    />
-                                </PopoverContent>
-                            </Popover>
-                        </div>
-                        <div class="space-y-2">
-                            <Label>Department</Label>
-                            <Select v-model="localFilters.department">
-                                <SelectTrigger>
-                                    <SelectValue placeholder="All Departments" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all_departments">All Departments</SelectItem>
-                                    <SelectItem v-for="dept in departments" :key="dept.id" :value="String(dept.id)">
-                                        {{ dept.name }}
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div class="space-y-2">
+                        
+                        <div class="col-span-12 md:col-span-3 space-y-2">
                             <Label>Sub-Department</Label>
                             <Select v-model="localFilters.sub_department">
                                 <SelectTrigger>
@@ -264,8 +238,9 @@ const formatDateForDisplay = (dateString: string) => {
                                 </SelectContent>
                             </Select>
                         </div>
-                        <div class="space-y-2">
-                            <Label>Employee</Label>
+                        
+                        <div class="col-span-12 md:col-span-3 space-y-2">
+                             <Label>Employee</Label>
                             <Select v-model="localFilters.employee">
                                 <SelectTrigger>
                                     <SelectValue placeholder="All Employees" />
@@ -278,9 +253,25 @@ const formatDateForDisplay = (dateString: string) => {
                                 </SelectContent>
                             </Select>
                         </div>
-                        <div class="flex items-end gap-2">
-                            <Button @click="applyFilters">Apply</Button>
-                            <Button variant="outline" @click="resetFilters">Reset</Button>
+
+                        <div class="col-span-12 md:col-span-3 flex items-center gap-2">
+                            <Button variant="secondary" @click="setToday">Today</Button>
+                            
+                            <Button variant="outline" size="icon" @click="resetFilters" v-if="hasActiveFilters" title="Reset Filters">
+                                <X class="h-4 w-4" />
+                            </Button>
+
+                            <DropdownMenu>
+                                <DropdownMenuTrigger as-child>
+                                    <Button variant="default">
+                                        <Download class="mr-2 h-4 w-4" /> Export
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent>
+                                    <DropdownMenuItem @click="exportData('csv')">Export as CSV</DropdownMenuItem>
+                                    <DropdownMenuItem @click="exportData('xlsx')">Export as XLSX</DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </div>
                     </div>
                 </CardContent>

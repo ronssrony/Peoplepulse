@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
-import { Clock, LayoutGrid, Users, Shield, UserCog } from 'lucide-vue-next';
+import { Clock, LayoutGrid, Users, Shield, UserCog, FileBarChart } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from './AppLogo.vue';
 
@@ -39,6 +39,15 @@ const mainNavItems = computed<NavItem[]>(() => {
             title: 'Team Attendance',
             href: '/attendance/manager',
             icon: Users,
+        });
+    }
+
+    // Add reports for managers and admins
+    if (user.value?.role === 'manager' || user.value?.role === 'admin') {
+        items.push({
+            title: 'Reports',
+            href: '/reports',
+            icon: FileBarChart,
         });
     }
 

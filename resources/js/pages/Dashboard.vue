@@ -5,14 +5,33 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import ClockInButton from '@/components/ClockInButton.vue';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { type BreadcrumbItem, type Attendance, type AttendanceStats } from '@/types';
+import { type BreadcrumbItem, type Attendance, type AttendanceStats, type User } from '@/types';
 import { Head, router, usePage } from '@inertiajs/vue3';
-import { Clock, LogIn, LogOut, AlertTriangle, CheckCircle, CalendarDays, Timer, TrendingUp } from 'lucide-vue-next';
+import { Clock, LogIn, LogOut, AlertTriangle, CheckCircle, CalendarDays, Timer, TrendingUp, Users, UserCheck, UserX } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+
+interface CompanyStats {
+    total_employees: number;
+    present: number;
+    absent: number;
+    late: number;
+    present_list: User[];
+    absent_list: User[];
+    late_list: User[];
+}
 
 interface Props {
     todayAttendance: Attendance | null;
     stats: AttendanceStats;
+    companyStats?: CompanyStats | null;
     isWeekend: boolean;
     officeStartTime: string;
     currentTime: string;
@@ -32,6 +51,9 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const isProcessing = ref(false);
+const isTeamModalOpen = ref(false);
+const teamModalTitle = ref('');
+const teamModalList = ref<User[]>([]);
 
 const canClockIn = computed(() => {
     if (!props.todayAttendance) return true;
@@ -97,6 +119,22 @@ const handleClockAction = () => {
         clockOut();
     }
 };
+
+const openTeamModal = (type: 'present' | 'absent' | 'late') => {
+    if (!props.companyStats) return;
+
+    if (type === 'present') {
+        teamModalTitle.value = 'Present Today';
+        teamModalList.value = props.companyStats.present_list;
+    } else if (type === 'absent') {
+        teamModalTitle.value = 'Absent Today';
+        teamModalList.value = props.companyStats.absent_list;
+    } else if (type === 'late') {
+        teamModalTitle.value = 'Late Today';
+        teamModalList.value = props.companyStats.late_list;
+    }
+    isTeamModalOpen.value = true;
+};
 </script>
 
 <template>
@@ -123,7 +161,8 @@ const handleClockAction = () => {
                 </p>
             </div>
 
-            <!-- Today's Status Card -->
+                <!-- Updated Header/Welcome Section or other content -->
+
             <Card>
                 <CardHeader>
                     <CardTitle class="flex items-center gap-2">
@@ -257,5 +296,42 @@ const handleClockAction = () => {
                 </Card>
             </div>
         </div>
+
+        <!-- Team Status Details Modal -->
+        <Dialog v-model:open="isTeamModalOpen">
+            <DialogContent class="max-h-[80vh] overflow-y-auto w-full max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>{{ teamModalTitle }}</DialogTitle>
+                    <DialogDescription>
+                        Listing employees who are {{ teamModalTitle.toLowerCase() }}.
+                    </DialogDescription>
+                </DialogHeader>
+                
+                <div class="space-y-4">
+                    <div v-if="teamModalList.length === 0" class="text-center text-muted-foreground py-8">
+                        No employees found in this category.
+                    </div>
+                    
+                    <div v-else class="grid gap-2">
+                         <div 
+                            v-for="employee in teamModalList" 
+                            :key="employee.id"
+                            class="flex items-center justify-between p-3 rounded-lg border bg-card text-card-foreground"
+                         >
+                            <div class="flex flex-col">
+                                <span class="font-medium">{{ employee.name }}</span>
+                                <span class="text-xs text-muted-foreground">
+                                    {{ employee.designation || 'Employee' }} 
+                                    <span v-if="employee.sub_department">({{ employee.sub_department.name }})</span>
+                                </span>
+                            </div>
+                            <div class="text-xs text-muted-foreground">
+                                {{ employee.employee_id }}
+                            </div>
+                         </div>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
     </AppLayout>
 </template>

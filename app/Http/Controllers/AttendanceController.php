@@ -37,9 +37,17 @@ class AttendanceController extends Controller
             $monthEnd->toDateString()
         );
 
+        $companyStats = null;
+        // Optimization: In a real app, maybe only load this via async request or for specific roles
+        // But requested features imply "Employee Dashboard" cards, so loaded for everyone or just admins/managers?
+        // "in employee dasbhaord there will be another work... show me those exact user list"
+        // This suggests visibility for all.
+        $companyStats = $this->attendanceService->getGlobalAttendanceSummary($today->toDateString());
+
         return Inertia::render('Dashboard', [
             'todayAttendance' => $todayAttendance,
             'stats' => $stats,
+            'companyStats' => $companyStats,
             'isWeekend' => $user->isWeekend($today->format('l')),
             'officeStartTime' => config('attendance.office_start_time'),
             'currentTime' => Carbon::now()->format('H:i:s'),
@@ -194,6 +202,45 @@ class AttendanceController extends Controller
                 'employee' => $employeeId,
             ],
         ]);
+    }
+
+    /**
+     * Export attendance records
+     */
+    public function export(AttendanceFilterRequest $request)
+    {
+        $user = $request->user();
+        if (!$user->isAdmin() && !$user->isManager()) {
+            abort(403, 'Unauthorized access.');
+        }
+
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+        $type = $request->input('type', 'csv'); // Default to csv
+        
+        $attendances = collect([]);
+
+        if ($user->isAdmin()) {
+             $attendances = $this->attendanceService->getAllAttendance(
+                $startDate, 
+                $endDate, 
+                $request->input('department'), 
+                $request->input('sub_department'),
+                $request->input('employee')
+            );
+        } elseif ($user->isManager()) {
+             $attendances = $this->attendanceService->getManagerVisibleAttendance(
+                $user, 
+                $startDate, 
+                $endDate, 
+                $request->input('sub_department')
+            );
+        }
+
+        $filename = "attendance_export_" . date('Y-m-d_H-i') . "." . $type;
+        $format = $type === 'xlsx' ? \Maatwebsite\Excel\Excel::XLSX : \Maatwebsite\Excel\Excel::CSV;
+
+        return \Maatwebsite\Excel\Facades\Excel::download(new \App\Exports\AttendanceExport($attendances), $filename, $format);
     }
 
     /**

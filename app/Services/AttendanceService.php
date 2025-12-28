@@ -220,7 +220,7 @@ class AttendanceService
     /**
      * Get all attendance records (admin)
      */
-    public function getAllAttendance(?string $startDate = null, ?string $endDate = null, ?int $departmentId = null, ?int $subDepartmentId = null)
+    public function getAllAttendance(?string $startDate = null, ?string $endDate = null, ?string $departmentId = null, ?string $subDepartmentId = null, ?string $employeeId = null)
     {
         $query = Attendance::with(['user.department', 'user.subDepartment']);
 
@@ -228,12 +228,17 @@ class AttendanceService
             $query->betweenDates($startDate, $endDate);
         }
 
-        if ($departmentId) {
-            $query->inDepartment($departmentId);
+        if ($employeeId && $employeeId !== 'all_employees') {
+            $query->where('user_id', $employeeId);
         }
-
-        if ($subDepartmentId) {
-            $query->inSubDepartment($subDepartmentId);
+        
+        if ($subDepartmentId && $subDepartmentId !== 'all_sub_departments') {
+            $query->inSubDepartment((int) $subDepartmentId);
+        }
+        
+        if ($departmentId && $departmentId !== 'all_departments') {
+             // Only filter by department if sub-department isn't already narrowing it down (though both apply is fine)
+            $query->inDepartment((int) $departmentId);
         }
 
         return $query->orderBy('date', 'desc')->get();
@@ -298,11 +303,43 @@ class AttendanceService
             ->get()
             ->keyBy('user_id');
 
+        return $this->calculateSummary($users, $attendances, $targetDate);
+    }
+
+    /**
+     * Get global attendance summary (for company-wide dashboard)
+     */
+    public function getGlobalAttendanceSummary(?string $date = null): array
+    {
+        $targetDate = $date ? Carbon::parse($date) : Carbon::today();
+
+        // Exclude admins from the general "Employee" stats if desired, or include all.
+        // Usually dashboards show "Employees". Assuming role!=admin or just all users.
+        // Let's include all non-admin users as "employees".
+        $users = User::where('role', '!=', 'admin')->get();
+        
+        $attendances = Attendance::whereIn('user_id', $users->pluck('id'))
+            ->forDate($targetDate)
+            ->with('user')
+            ->get()
+            ->keyBy('user_id');
+
+        return $this->calculateSummary($users, $attendances, $targetDate);
+    }
+
+    /**
+     * Helper to calculate summary stats
+     */
+    protected function calculateSummary($users, $attendances, Carbon $targetDate): array
+    {
         $summary = [
             'total_employees' => $users->count(),
             'present' => 0,
             'absent' => 0,
             'late' => 0,
+            'present_list' => [],
+            'absent_list' => [],
+            'late_list' => [],
         ];
 
         foreach ($users as $user) {
@@ -310,13 +347,18 @@ class AttendanceService
 
             if ($attendance && $attendance->hasClockedIn()) {
                 $summary['present']++;
+                // Add to present list
+                $summary['present_list'][] = $user;
+
                 if ($attendance->is_late) {
                     $summary['late']++;
+                     $summary['late_list'][] = $user;
                 }
             } else {
                 // Check if it's not a weekend for this user
                 if (!$user->isWeekend($targetDate->format('l'))) {
                     $summary['absent']++;
+                    $summary['absent_list'][] = $user;
                 }
             }
         }
