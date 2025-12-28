@@ -72,6 +72,7 @@ const user = page.props.auth.user;
                             required
                             autocomplete="username"
                             placeholder="Email address"
+                            readonly
                         />
                         <InputError class="mt-2" :message="errors.email" />
                     </div>
