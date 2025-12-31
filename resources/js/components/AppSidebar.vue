@@ -46,7 +46,7 @@ const mainNavItems = computed<NavItem[]>(() => {
     if (user.value?.role === 'manager' || user.value?.role === 'admin') {
         items.push({
             title: 'Reports',
-            href: '/reports',
+            href: '/attendance/reports',
             icon: FileBarChart,
         });
     }

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight } from "lucide-vue-next";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 
 const props = defineProps<{
     modelValue: string | null;
+    minDate?: string;
     class?: string;
 }>();
 
@@ -15,6 +16,10 @@ const emit = defineEmits<{
 const currentDate = ref(new Date());
 const selectedDate = computed(() =>
     props.modelValue ? new Date(props.modelValue) : null
+);
+
+const minDateObj = computed(() => 
+    props.minDate ? new Date(props.minDate) : null
 );
 
 const daysInMonth = computed(() => {
@@ -54,6 +59,8 @@ const nextMonth = () => {
 };
 
 const selectDate = (day: number) => {
+    if (isDisabled(day)) return;
+    
     const date = new Date(
         currentDate.value.getFullYear(),
         currentDate.value.getMonth(),
@@ -82,6 +89,22 @@ const isToday = (day: number) => {
         day
     );
     return date.toDateString() === today.toDateString();
+};
+
+const isDisabled = (day: number) => {
+    if (!minDateObj.value) return false;
+    
+    const date = new Date(
+        currentDate.value.getFullYear(),
+        currentDate.value.getMonth(),
+        day
+    );
+    // Reset hours to compare only dates
+    date.setHours(0, 0, 0, 0);
+    const minDateNormalized = new Date(minDateObj.value);
+    minDateNormalized.setHours(0, 0, 0, 0);
+    
+    return date < minDateNormalized;
 };
 </script>
 
@@ -124,10 +147,12 @@ const isToday = (day: number) => {
                 :key="day"
                 @click="selectDate(day)"
                 type="button"
+                :disabled="isDisabled(day)"
                 :class="cn(
                     'inline-flex h-8 w-8 items-center justify-center rounded-md p-0 text-sm font-normal ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 aria-selected:opacity-100 hover:bg-accent hover:text-accent-foreground',
                     isSelected(day) && 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground',
-                     isToday(day) && !isSelected(day) && 'bg-accent text-accent-foreground'
+                    isToday(day) && !isSelected(day) && 'bg-accent text-accent-foreground',
+                    isDisabled(day) && 'opacity-30 cursor-not-allowed hover:bg-transparent'
                 )"
             >
                 {{ day }}

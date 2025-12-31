@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import type { BreadcrumbItem } from '@/types';
 import { Head, useForm } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
+import { ChevronDown, ChevronUp } from 'lucide-vue-next';
 
 interface SubDepartment {
     id: number;
@@ -30,6 +31,16 @@ interface Employee {
     role: 'user' | 'manager' | 'admin';
     weekend_days: string[];
     managedSubDepartments?: SubDepartment[];
+    // Personal Information
+    nid_number?: string | null;
+    joining_date?: string | null;
+    closing_date?: string | null;
+    permanent_address?: string | null;
+    present_address?: string | null;
+    nationality?: string | null;
+    fathers_name?: string | null;
+    mothers_name?: string | null;
+    graduated_institution?: string | null;
 }
 
 interface Props {
@@ -40,6 +51,7 @@ interface Props {
 const props = defineProps<Props>();
 
 const isEditMode = computed(() => !!props.employee);
+const isPersonalInfoOpen = ref(false);
 
 const breadcrumbs = computed<BreadcrumbItem[]>(() => [
     { title: 'Dashboard', href: '/dashboard' },
@@ -60,6 +72,16 @@ const form = useForm({
     designation: props.employee?.designation || '',
     role: props.employee?.role || 'user' as 'user' | 'manager' | 'admin',
     weekend_days: [] as string[],
+    // Personal Information
+    nid_number: props.employee?.nid_number || '',
+    joining_date: props.employee?.joining_date || '',
+    closing_date: props.employee?.closing_date || '',
+    permanent_address: props.employee?.permanent_address || '',
+    present_address: props.employee?.present_address || '',
+    nationality: props.employee?.nationality || '',
+    fathers_name: props.employee?.fathers_name || '',
+    mothers_name: props.employee?.mothers_name || '',
+    graduated_institution: props.employee?.graduated_institution || '',
 });
 
 const weekendOptions = [
@@ -175,6 +197,108 @@ watch(() => form.department_id, (newDeptId, oldDeptId) => {
                                 />
                                 <p v-if="isEditMode" class="text-xs text-muted-foreground">Password cannot be changed here</p>
                                 <p v-if="form.errors.password" class="text-sm text-destructive">{{ form.errors.password }}</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <!-- Additional Personal Details (Collapsible) -->
+                    <Card>
+                        <CardHeader 
+                            class="cursor-pointer select-none"
+                            @click="isPersonalInfoOpen = !isPersonalInfoOpen"
+                        >
+                            <div class="flex items-center justify-between">
+                                <CardTitle>Additional Personal Details</CardTitle>
+                                <ChevronDown v-if="!isPersonalInfoOpen" class="h-5 w-5 text-muted-foreground" />
+                                <ChevronUp v-else class="h-5 w-5 text-muted-foreground" />
+                            </div>
+                            <p class="text-sm text-muted-foreground">Optional fields for detailed employee records</p>
+                        </CardHeader>
+                        <CardContent v-show="isPersonalInfoOpen" class="grid gap-4 md:grid-cols-2">
+                            <div class="space-y-2">
+                                <Label for="nid_number">NID Number</Label>
+                                <Input
+                                    id="nid_number"
+                                    v-model="form.nid_number"
+                                    placeholder="National ID Number"
+                                />
+                                <p v-if="form.errors.nid_number" class="text-sm text-destructive">{{ form.errors.nid_number }}</p>
+                            </div>
+                            <div class="space-y-2">
+                                <Label for="nationality">Nationality</Label>
+                                <Input
+                                    id="nationality"
+                                    v-model="form.nationality"
+                                    placeholder="e.g., Bangladeshi"
+                                />
+                                <p v-if="form.errors.nationality" class="text-sm text-destructive">{{ form.errors.nationality }}</p>
+                            </div>
+                            <div class="space-y-2">
+                                <Label for="joining_date">Joining Date</Label>
+                                <Input
+                                    id="joining_date"
+                                    type="date"
+                                    v-model="form.joining_date"
+                                />
+                                <p v-if="form.errors.joining_date" class="text-sm text-destructive">{{ form.errors.joining_date }}</p>
+                            </div>
+                            <div class="space-y-2">
+                                <Label for="closing_date">Closing Date</Label>
+                                <Input
+                                    id="closing_date"
+                                    type="date"
+                                    v-model="form.closing_date"
+                                />
+                                <p v-if="form.errors.closing_date" class="text-sm text-destructive">{{ form.errors.closing_date }}</p>
+                            </div>
+                            <div class="space-y-2">
+                                <Label for="fathers_name">Father's Name</Label>
+                                <Input
+                                    id="fathers_name"
+                                    v-model="form.fathers_name"
+                                    placeholder="Father's full name"
+                                />
+                                <p v-if="form.errors.fathers_name" class="text-sm text-destructive">{{ form.errors.fathers_name }}</p>
+                            </div>
+                            <div class="space-y-2">
+                                <Label for="mothers_name">Mother's Name</Label>
+                                <Input
+                                    id="mothers_name"
+                                    v-model="form.mothers_name"
+                                    placeholder="Mother's full name"
+                                />
+                                <p v-if="form.errors.mothers_name" class="text-sm text-destructive">{{ form.errors.mothers_name }}</p>
+                            </div>
+                            <div class="space-y-2">
+                                <Label for="graduated_institution">Graduated Institution</Label>
+                                <Input
+                                    id="graduated_institution"
+                                    v-model="form.graduated_institution"
+                                    placeholder="University/College name"
+                                />
+                                <p v-if="form.errors.graduated_institution" class="text-sm text-destructive">{{ form.errors.graduated_institution }}</p>
+                            </div>
+                            <div class="space-y-2 md:col-span-2">
+                                <Label for="permanent_address">Permanent Address</Label>
+                                <textarea
+                                    id="permanent_address"
+                                    v-model="form.permanent_address"
+                                    rows="2"
+                                    class="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                    placeholder="Permanent address"
+                                ></textarea>
+                                <p v-if="form.errors.permanent_address" class="text-sm text-destructive">{{ form.errors.permanent_address }}</p>
+                            </div>
+                            <div class="space-y-2 md:col-span-2">
+                                <Label for="present_address">Present Address</Label>
+                                <textarea
+                                    id="present_address"
+                                    v-model="form.present_address"
+                                    rows="2"
+                                    class="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                    placeholder="Present address"
+                                ></textarea>
+                                <p v-if="form.errors.present_address" class="text-sm text-destructive">{{ form.errors.present_address }}</p>
                             </div>
                         </CardContent>
                     </Card>

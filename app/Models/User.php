@@ -25,11 +25,21 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'profile_picture',
         'department_id',
         'sub_department_id',
         'designation',
         'role',
         'weekend_days',
+        'nid_number',
+        'joining_date',
+        'closing_date',
+        'permanent_address',
+        'present_address',
+        'nationality',
+        'fathers_name',
+        'mothers_name',
+        'graduated_institution',
     ];
 
     /**
@@ -53,6 +63,8 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'weekend_days' => 'array',
+            'joining_date' => 'date',
+            'closing_date' => 'date',
         ];
     }
 

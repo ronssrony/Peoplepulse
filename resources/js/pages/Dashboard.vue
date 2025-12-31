@@ -154,7 +154,7 @@ const openTeamModal = (type: 'present' | 'absent' | 'late') => {
 
             <!-- Welcome Message -->
             <div>
-                <h1 class="text-2xl font-bold">Welcome back, {{ user.name }}</h1>
+                <h1 class="text-2xl font-bold">Welcome back, {{ user.name.charAt(0).toUpperCase() + user.name.slice(1) }}</h1>
                 <p class="text-muted-foreground">
                     {{ user.designation }}
                     <span v-if="user?.sub_department"> / {{ user?.sub_department?.name }}</span>

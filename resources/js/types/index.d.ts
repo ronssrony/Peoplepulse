@@ -31,6 +31,7 @@ export interface User {
     employee_id: string;
     name: string;
     email: string;
+    profile_picture?: string | null;
     department?: { id: number; name: string };
     sub_department?: { id: number; name: string };
     designation: string;

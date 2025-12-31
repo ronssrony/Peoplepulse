@@ -24,6 +24,9 @@ const localStartDate = ref(props.startDate);
 const localEndDate = ref(props.endDate);
 const isOpen = ref(false);
 
+// Minimum date for end date picker (must be >= start date)
+const minEndDate = computed(() => localStartDate.value || '');
+
 const formatDateForDisplay = (start: string, end: string) => {
     if (!start && !end) return 'Pick a date range';
     if (start && !end) return formatDate(start);
@@ -44,6 +47,13 @@ const handleApply = () => {
     emit('apply');
     isOpen.value = false;
 };
+
+// When start date changes, reset end date if it's less than start date
+watch(() => localStartDate.value, (newStartDate) => {
+    if (newStartDate && localEndDate.value && localEndDate.value < newStartDate) {
+        localEndDate.value = newStartDate;
+    }
+});
 
 // Sync local state when props change (if closed)
 watch(() => [props.startDate, props.endDate], ([newStart, newEnd]) => {
@@ -78,7 +88,7 @@ watch(() => [props.startDate, props.endDate], ([newStart, newEnd]) => {
                     </div>
                     <div class="p-3 space-y-3">
                         <Label class="text-xs font-semibold">End Date</Label>
-                        <Calendar v-model="localEndDate" class="rounded-md border shadow-none" />
+                        <Calendar v-model="localEndDate" :min-date="minEndDate" class="rounded-md border shadow-none" />
                     </div>
                 </div>
                 <div class="p-3 border-t bg-muted/50 flex justify-end">

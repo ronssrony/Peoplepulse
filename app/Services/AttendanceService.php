@@ -337,6 +337,7 @@ class AttendanceService
             'present' => 0,
             'absent' => 0,
             'late' => 0,
+            'all_list' => $users->values()->all(),
             'present_list' => [],
             'absent_list' => [],
             'late_list' => [],

@@ -76,6 +76,16 @@ class EmployeeController extends Controller
             'role' => ['required', Rule::in(['user', 'manager', 'admin'])],
             'weekend_days' => ['required', 'array', 'min:1'],
             'weekend_days.*' => ['string', Rule::in(['friday', 'saturday', 'sunday'])],
+            // Personal Information (nullable)
+            'nid_number' => ['nullable', 'string', 'max:50'],
+            'joining_date' => ['nullable', 'date'],
+            'closing_date' => ['nullable', 'date'],
+            'permanent_address' => ['nullable', 'string', 'max:500'],
+            'present_address' => ['nullable', 'string', 'max:500'],
+            'nationality' => ['nullable', 'string', 'max:100'],
+            'fathers_name' => ['nullable', 'string', 'max:255'],
+            'mothers_name' => ['nullable', 'string', 'max:255'],
+            'graduated_institution' => ['nullable', 'string', 'max:255'],
         ]);
 
         $user = User::create([
@@ -89,6 +99,16 @@ class EmployeeController extends Controller
             'role' => $validated['role'],
             'weekend_days' => $validated['weekend_days'],
             'email_verified_at' => now(),
+            // Personal Information
+            'nid_number' => $validated['nid_number'] ?? null,
+            'joining_date' => $validated['joining_date'] ?? null,
+            'closing_date' => $validated['closing_date'] ?? null,
+            'permanent_address' => $validated['permanent_address'] ?? null,
+            'present_address' => $validated['present_address'] ?? null,
+            'nationality' => $validated['nationality'] ?? null,
+            'fathers_name' => $validated['fathers_name'] ?? null,
+            'mothers_name' => $validated['mothers_name'] ?? null,
+            'graduated_institution' => $validated['graduated_institution'] ?? null,
         ]);
 
         return redirect()->route('employees.index')->with('success', 'Employee created successfully!');
@@ -130,6 +150,16 @@ class EmployeeController extends Controller
             'role' => ['required', Rule::in(['user', 'manager', 'admin'])],
             'weekend_days' => ['required', 'array', 'min:1'],
             'weekend_days.*' => ['string', Rule::in(['friday', 'saturday', 'sunday'])],
+            // Personal Information (nullable)
+            'nid_number' => ['nullable', 'string', 'max:50'],
+            'joining_date' => ['nullable', 'date'],
+            'closing_date' => ['nullable', 'date'],
+            'permanent_address' => ['nullable', 'string', 'max:500'],
+            'present_address' => ['nullable', 'string', 'max:500'],
+            'nationality' => ['nullable', 'string', 'max:100'],
+            'fathers_name' => ['nullable', 'string', 'max:255'],
+            'mothers_name' => ['nullable', 'string', 'max:255'],
+            'graduated_institution' => ['nullable', 'string', 'max:255'],
         ]);
 
         $employee->update([
@@ -140,6 +170,16 @@ class EmployeeController extends Controller
             'designation' => $validated['designation'],
             'role' => $validated['role'],
             'weekend_days' => $validated['weekend_days'],
+            // Personal Information
+            'nid_number' => $validated['nid_number'] ?? null,
+            'joining_date' => $validated['joining_date'] ?? null,
+            'closing_date' => $validated['closing_date'] ?? null,
+            'permanent_address' => $validated['permanent_address'] ?? null,
+            'present_address' => $validated['present_address'] ?? null,
+            'nationality' => $validated['nationality'] ?? null,
+            'fathers_name' => $validated['fathers_name'] ?? null,
+            'mothers_name' => $validated['mothers_name'] ?? null,
+            'graduated_institution' => $validated['graduated_institution'] ?? null,
         ]);
 
         return redirect()->route('employees.index')->with('success', 'Employee updated successfully!');

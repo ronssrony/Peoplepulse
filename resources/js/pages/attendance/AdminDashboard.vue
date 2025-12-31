@@ -2,9 +2,8 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
     Dialog,
     DialogContent,
@@ -21,11 +20,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type { Attendance, AttendanceFilters, BreadcrumbItem, PaginatedData } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { Edit2, Clock, Download, X, Users, AlertTriangle, UserCheck, UserX, Trash2, Play, Pause } from 'lucide-vue-next';
+import { Clock, Download, X, Users, AlertTriangle, UserCheck, UserX } from 'lucide-vue-next';
 import { ref, computed, watch } from 'vue';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
 import DateRangePicker from '@/components/ui/date-range-picker/DateRangePicker.vue';
+import type { User } from '@/types';
 
 interface Department {
     id: number;
@@ -58,12 +57,24 @@ interface Employee {
     };
 }
 
+interface CompanySummary {
+    total_employees: number;
+    present: number;
+    absent: number;
+    late: number;
+    all_list: User[];
+    present_list: User[];
+    absent_list: User[];
+    late_list: User[];
+}
+
 interface Props {
     attendances: PaginatedData<Attendance>;
     departments: Department[];
     subDepartments: SubDepartment[];
     employees: Employee[];
     filters: AttendanceFilters;
+    companySummary: CompanySummary | null;
 }
 
 const props = defineProps<Props>();
@@ -83,6 +94,9 @@ const localFilters = ref({
 
 const showOverrideModal = ref(false);
 const selectedAttendance = ref<Attendance | null>(null);
+const isTeamModalOpen = ref(false);
+const teamModalTitle = ref('');
+const teamModalList = ref<User[]>([]);
 
 const overrideForm = useForm({
     clock_in: '',
@@ -162,6 +176,25 @@ const submitOverride = () => {
     });
 };
 
+const openTeamModal = (type: 'all' | 'present' | 'absent' | 'late') => {
+    if (!props.companySummary) return;
+
+    if (type === 'all') {
+        teamModalTitle.value = 'All Employees';
+        teamModalList.value = props.companySummary.all_list;
+    } else if (type === 'present') {
+        teamModalTitle.value = 'Present';
+        teamModalList.value = props.companySummary.present_list;
+    } else if (type === 'absent') {
+        teamModalTitle.value = 'Absent';
+        teamModalList.value = props.companySummary.absent_list;
+    } else if (type === 'late') {
+        teamModalTitle.value = 'Late';
+        teamModalList.value = props.companySummary.late_list;
+    }
+    isTeamModalOpen.value = true;
+};
+
 const formatTime = (dateString: string | null) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleTimeString('en-US', {
@@ -198,84 +231,145 @@ const hasActiveFilters = computed(() => {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-col gap-6 p-4 md:p-6">
-            <!-- Header -->
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-2xl font-bold">Admin Dashboard</h1>
+            <!-- Header with Filters -->
+            <div class="flex flex-col gap-4">
+                <h1 class="text-2xl font-bold">Admin Dashboard</h1>
+                <div class="flex flex-wrap gap-2 items-center">
+                    <DateRangePicker 
+                        :start-date="localFilters.start_date"
+                        :end-date="localFilters.end_date"
+                        @update:start-date="(v) => localFilters.start_date = v"
+                        @update:end-date="(v) => localFilters.end_date = v"
+                        @apply="applyFilters"
+                    />
+                    <Select v-model="localFilters.sub_department">
+                        <SelectTrigger class="w-[180px]">
+                            <SelectValue placeholder="All Sub-Departments" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all_sub_departments">All Sub-Departments</SelectItem>
+                            <SelectItem v-for="sub in subDepartments" :key="sub.id" :value="String(sub.id)">
+                                {{ sub.name }}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Select v-model="localFilters.employee">
+                        <SelectTrigger class="w-[180px]">
+                            <SelectValue placeholder="All Employees" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all_employees">All Employees</SelectItem>
+                            <SelectItem v-for="emp in employees" :key="emp.id" :value="String(emp.id)">
+                                {{ emp.name }} ({{ emp.employee_id }})
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Button variant="secondary" @click="setToday">Today</Button>
+                    <Button variant="outline" size="icon" @click="resetFilters" v-if="hasActiveFilters" title="Reset Filters">
+                        <X class="h-4 w-4" />
+                    </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger as-child>
+                            <Button variant="default">
+                                <Download class="mr-2 h-4 w-4" /> Export
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                            <DropdownMenuItem @click="exportData('csv')">Export as CSV</DropdownMenuItem>
+                            <DropdownMenuItem @click="exportData('xlsx')">Export as XLSX</DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </div>
 
-            <!-- Filters -->
-            <Card>
-                <CardHeader>
-                    <CardTitle>Filters</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div class="grid gap-4 md:grid-cols-12 items-end">
-                        
-                        <div class="col-span-12 md:col-span-3 space-y-2">
-                            <Label>Date Range</Label>
-                            <DateRangePicker 
-                                :start-date="localFilters.start_date"
-                                :end-date="localFilters.end_date"
-                                @update:start-date="(v) => localFilters.start_date = v"
-                                @update:end-date="(v) => localFilters.end_date = v"
-                                @apply="applyFilters"
-                            />
+            <!-- Today's Summary Cards -->
+            <div v-if="companySummary" class="grid gap-4 md:grid-cols-4">
+                <Card 
+                    class="cursor-pointer hover:bg-muted/50 transition-colors"
+                    @click="openTeamModal('all')"
+                >
+                    <CardHeader class="flex flex-row items-center justify-between pb-2">
+                        <CardDescription>Total Employees</CardDescription>
+                        <Users class="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div class="text-3xl font-bold">{{ companySummary.total_employees }}</div>
+                    </CardContent>
+                </Card>
+                <Card 
+                    class="cursor-pointer hover:bg-muted/50 transition-colors"
+                    @click="openTeamModal('present')"
+                >
+                    <CardHeader class="flex flex-row items-center justify-between pb-2">
+                        <CardDescription>Present Today</CardDescription>
+                        <UserCheck class="h-4 w-4 text-green-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div class="text-3xl font-bold text-green-600">{{ companySummary.present }}</div>
+                    </CardContent>
+                </Card>
+                <Card 
+                    class="cursor-pointer hover:bg-muted/50 transition-colors"
+                    @click="openTeamModal('absent')"
+                >
+                    <CardHeader class="flex flex-row items-center justify-between pb-2">
+                        <CardDescription>Absent Today</CardDescription>
+                        <UserX class="h-4 w-4 text-red-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div class="text-3xl font-bold text-red-600">{{ companySummary.absent }}</div>
+                    </CardContent>
+                </Card>
+                <Card 
+                    class="cursor-pointer hover:bg-muted/50 transition-colors"
+                    @click="openTeamModal('late')"
+                >
+                    <CardHeader class="flex flex-row items-center justify-between pb-2">
+                        <CardDescription>Late Today</CardDescription>
+                        <AlertTriangle class="h-4 w-4 text-yellow-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div class="text-3xl font-bold text-yellow-600">{{ companySummary.late }}</div>
+                    </CardContent>
+                </Card>
+            </div>
+            
+            <!-- Team Status Details Modal -->
+            <Dialog v-model:open="isTeamModalOpen">
+                <DialogContent class="max-h-[80vh] overflow-y-auto w-full max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>{{ teamModalTitle }}</DialogTitle>
+                        <DialogDescription>
+                            Listing employees who are {{ teamModalTitle.toLowerCase() }} today.
+                        </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div class="space-y-4">
+                        <div v-if="teamModalList.length === 0" class="text-center text-muted-foreground py-8">
+                            No employees found in this category.
                         </div>
                         
-                        <div class="col-span-12 md:col-span-3 space-y-2">
-                            <Label>Sub-Department</Label>
-                            <Select v-model="localFilters.sub_department">
-                                <SelectTrigger>
-                                    <SelectValue placeholder="All Sub-Departments" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all_sub_departments">All Sub-Departments</SelectItem>
-                                    <SelectItem v-for="sub in subDepartments" :key="sub.id" :value="String(sub.id)">
-                                        {{ sub.name }}
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        
-                        <div class="col-span-12 md:col-span-3 space-y-2">
-                             <Label>Employee</Label>
-                            <Select v-model="localFilters.employee">
-                                <SelectTrigger>
-                                    <SelectValue placeholder="All Employees" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all_employees">All Employees</SelectItem>
-                                    <SelectItem v-for="emp in employees" :key="emp.id" :value="String(emp.id)">
-                                        {{ emp.name }} ({{ emp.employee_id }})
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div class="col-span-12 md:col-span-3 flex items-center gap-2">
-                            <Button variant="secondary" @click="setToday">Today</Button>
-                            
-                            <Button variant="outline" size="icon" @click="resetFilters" v-if="hasActiveFilters" title="Reset Filters">
-                                <X class="h-4 w-4" />
-                            </Button>
-
-                            <DropdownMenu>
-                                <DropdownMenuTrigger as-child>
-                                    <Button variant="default">
-                                        <Download class="mr-2 h-4 w-4" /> Export
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent>
-                                    <DropdownMenuItem @click="exportData('csv')">Export as CSV</DropdownMenuItem>
-                                    <DropdownMenuItem @click="exportData('xlsx')">Export as XLSX</DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+                        <div v-else class="grid gap-2">
+                             <div 
+                                v-for="employee in teamModalList" 
+                                :key="employee.id"
+                                class="flex items-center justify-between p-3 rounded-lg border bg-card text-card-foreground"
+                             >
+                                <div class="flex flex-col">
+                                    <span class="font-medium">{{ employee.name }}</span>
+                                    <span class="text-xs text-muted-foreground">
+                                        {{ employee.designation || 'Employee' }} 
+                                        <span v-if="employee.sub_department">({{ employee.sub_department.name }})</span>
+                                    </span>
+                                </div>
+                                <div class="text-xs text-muted-foreground">
+                                    {{ employee.employee_id }}
+                                </div>
+                             </div>
                         </div>
                     </div>
-                </CardContent>
-            </Card>
+                </DialogContent>
+            </Dialog>
 
             <!-- Attendance Table -->
             <Card>
