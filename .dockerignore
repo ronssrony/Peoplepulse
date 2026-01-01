@@ -1,0 +1,53 @@
+# Dependencies
+/node_modules
+/vendor
+
+# Build outputs
+/public/build
+/public/hot
+/public/storage
+/bootstrap/ssr
+
+# Environment files
+.env
+.env.backup
+.env.production
+
+# Git
+.git
+.gitattributes
+.gitignore
+
+# IDE
+.idea
+.vscode
+.fleet
+.nova
+.zed
+
+# Docker
+docker-compose.override.yml
+
+# Tests
+/tests
+/.phpunit.cache
+.phpunit.result.cache
+
+# Logs
+*.log
+npm-debug.log
+yarn-error.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Documentation
+*.md
+!README.md
+
+# Other
+/storage/*.key
+/storage/pail
+Homestead.json
+Homestead.yaml
